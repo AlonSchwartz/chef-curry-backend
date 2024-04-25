@@ -212,4 +212,21 @@ export async function getRefreshSecret(email) {
         // return [];  // maybe i should remove it
     }
 }
+/**
+ * Deletes a user from database
+ * @param {*} email the email of the user to delete
+ * @returns true if the deletion was successful, or error otherwise
+ */
+export async function deleteUserFromDB(email) {
+    try {
+        const result = await pool.query(`
+        DELETE FROM users
+        WHERE email = $1
+        `, [email]);
+
+        return true;
+    } catch (error) {
+        console.log(error)
+    }
+}
 

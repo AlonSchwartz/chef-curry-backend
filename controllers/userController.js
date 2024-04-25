@@ -1,5 +1,5 @@
 import { serialize } from 'cookie';
-import { createUserInDB, checkIfEmailExists, login, hashPassword, getSecret, getRefreshSecret, updateSecret, storeSecret } from '../database.js';
+import { createUserInDB, checkIfEmailExists, login, hashPassword, getSecret, getRefreshSecret, updateSecret, storeSecret, deleteUserFromDB } from '../database.js';
 import { getRecipesFromDB } from "../recipeDatabase.js";
 
 import crypto from 'crypto';
@@ -24,8 +24,8 @@ export async function createUser(req, res) {
                 secret: secret,
                 refreshSecret: refreshSecret
             }
-            const tokens = await generateTokens(email, secrets)
 
+            const tokens = await generateTokens(email, secrets)
             const accessToken = tokens.accessToken;
             const refreshToken = tokens.refreshToken;
 
@@ -39,10 +39,7 @@ export async function createUser(req, res) {
             const jwtCookie = createCookie('jwtToken', accessToken)
             const refreshCookie = createCookie('refreshToken', refreshToken)
 
-            console.warn("Setting a cookie after user signup")
-
             res.setHeader('Set-Cookie', [jwtCookie, refreshCookie])
-
             res.json(msg)
         }
         else {
@@ -87,9 +84,8 @@ export async function loginUser(req, res, next) {
 
                     const jwtCookie = createCookie('jwtToken', accessToken)
                     const refreshCookie = createCookie('refreshToken', refreshToken)
-                    console.warn("created cookies after login, and now going to set them.")
-                    res.setHeader('Set-Cookie', [jwtCookie, refreshCookie])
 
+                    res.setHeader('Set-Cookie', [jwtCookie, refreshCookie])
                     res.json(msg)
                 }
             }
@@ -126,24 +122,18 @@ async function generateKey(email, isRefresh) {
         return token
     }
     else {
-        console.log("failed to create a token")
+        console.log("failed to store secret")
 
-        /////// In that stage, the user info is already saved in DB, but the registeration is not complete. 
+        // In that stage, the user info is already saved in DB, but the registeration is not complete. 
         // Next time the user will try to register - it will say he already have an account, so we need to delete the info.
-        throw new Error("Registeration failed, check logs")
-    }
-}
+        let isUserDeleted = await deleteUserFromDB(email)
 
-async function reGenerateKey(email) {
-    const token = crypto.randomBytes(64).toString('hex')
-    const isStoredSuccussfuly = await updateSecret(email, token)
-
-    if (isStoredSuccussfuly) {
-        return token
-    }
-    else {
-        console.log("failed to create a token")
+        if (!isUserDeleted) {
+            //send email to inform
+            throw new Error("Registeration failed. Please try again later.")
+        }
         throw new Error("Registeration failed, check logs")
+
     }
 }
 
@@ -152,30 +142,14 @@ async function reGenerateKey(email) {
  * @returns json message indicates if the tokens are valid or not
  */
 export async function checkAuth(req, res, next) {
-    let currDate = new Date();
-
-    console.log("Hii!!!! i am checking auth " + currDate.getHours() + ":" + currDate.getMinutes() + ":" + currDate.getSeconds())
-
-    console.log("jwtToken:")
-    console.log(req.cookies.jwtToken)
-    console.log("==")
-    console.log("refreshToken:")
-    console.log(req.cookies.refreshToken)
-    console.log("======")
-
     const jwtToken = req.cookies.jwtToken;
     const refreshToken = req.cookies.refreshToken;
-
     const email = req.body.email;
-    console.log("email is " + email)
 
     const userSecret = await getSecret(email);
-    console.log(userSecret)
-    console.log(jwtToken)
+
     try {
         const user = await jwt.verify(jwtToken, userSecret);
-        console.log(user)
-        console.log("its verified. now sending back and going next.")
         req.user = user;
 
         if (req.path === "/check-tokens") {
@@ -186,31 +160,23 @@ export async function checkAuth(req, res, next) {
         }
 
     } catch (err) {
-        console.log("there is an error")
         console.log(err)
-        // check if error is token expired
+
         if (err.name === 'TokenExpiredError') {
-            console.log("i will check now if refresh token is valid.")
-            // check if refresh token is valid
+            console.log("JWT expired. checking Refresh token")
             const isRefreshTokenValid = await checkIfRefreshTokenValid(refreshToken, email);
 
             if (isRefreshTokenValid) {
-                console.log("refresh token is good!");
+                console.log("Refresh token is good!");
 
-                // const secret = await reGenerateKey(email);
                 const secret = await getSecret(email)
-                console.log("================================")
-                console.log("regen key: " + secret)
-                console.log("================================")
-
                 const user = { email: email }
                 const accessToken = jwt.sign(user, secret, { expiresIn: '5h' })
+
                 req.userData = { "user": user, "accessToken": accessToken }
 
                 const jwtCookie = createCookie('jwtToken', accessToken)
-                console.warn("Setting a cookie because it was expired, but the refresh is valid")
                 res.setHeader('Set-Cookie', jwtCookie)
-
 
                 const msg = {
                     title: "validation success.",
@@ -223,38 +189,36 @@ export async function checkAuth(req, res, next) {
                 else if (req.path === "/save") {
                     next()
                 }
-                // create a new access token
-                // update in db
-                // do what the user wanted to do
-                // return the accesstoken
-
-                //  return res.json({ msg: "All good" });
             }
 
             return res.status(401).json({ message: 'Session has expired, you have to log in' });
-
-            // add return with redirect to login, saying "session has expried, you have to log in"
         }
         console.log("Not good!!!")
         return res.status(401).json({ message: 'Unauthorized' });
     }
 }
 
+/**
+ * Performs a logout by clearing the cookies from user's browser
+ * @returns json message
+ */
 export async function logoutUser(req, res, next) {
-    console.log("in logout")
-
     res.clearCookie('jwtToken');
     res.clearCookie('refreshToken');
 
     return res.status(200).json({ successfull: true });
-
 }
 
+/**
+ * Generates tokens for a user by given secrets
+ * @param {*} email the email of the user
+ * @param {*} secrets the secrets we want to create tokens for
+ * @returns the tokens containing the secerts
+ */
 async function generateTokens(email, secrets = "") {
     let secret = "";
     let refreshSecret = "";
     if (!secrets) {
-        console.log("No secret!")
         secret = await getSecret(email);
         refreshSecret = await getRefreshSecret(email)
     }
@@ -263,8 +227,6 @@ async function generateTokens(email, secrets = "") {
         refreshSecret = secrets.refreshSecret
     }
 
-    console.log("Secret is ")
-    console.log(secret)
     const user = { email: email }
     const accessToken = jwt.sign(user, secret, { expiresIn: '5h' })
     const refreshToken = jwt.sign(user, refreshSecret, { expiresIn: '1w' })
@@ -273,8 +235,7 @@ async function generateTokens(email, secrets = "") {
         'accessToken': accessToken,
         'refreshToken': refreshToken
     }
-    console.log("I am in genTokens methos. tokens are: ")
-    console.log(tokens)
+
     return tokens;
 }
 
