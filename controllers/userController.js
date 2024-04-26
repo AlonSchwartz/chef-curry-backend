@@ -60,6 +60,10 @@ export async function createUser(req, res) {
     }
 }
 
+/**
+ * Performs login attempt
+ * @returns response as json object
+ */
 export async function loginUser(req, res, next) {
     const email = req.body.email;
     const password = req.body.password;
@@ -129,7 +133,7 @@ async function generateKey(email, isRefresh) {
         let isUserDeleted = await deleteUserFromDB(email)
 
         if (!isUserDeleted) {
-            //send email to inform
+            //TODO: send email to inform
             throw new Error("Registeration failed. Please try again later.")
         }
         throw new Error("Registeration failed, check logs")
@@ -149,8 +153,8 @@ export async function checkAuth(req, res, next) {
     const userSecret = await getSecret(email);
 
     try {
-        const user = await jwt.verify(jwtToken, userSecret);
-        req.user = user;
+        const user = jwt.verify(jwtToken, userSecret);
+        req.user = user; // attaching user information to the request object, for cases request passing to different middleware
 
         if (req.path === "/check-tokens") {
             return res.json({ msg: "All good. user is verifed", successfull: true }) //change successfull to successful (just 1 l)
@@ -163,27 +167,22 @@ export async function checkAuth(req, res, next) {
         console.log(err)
 
         if (err.name === 'TokenExpiredError') {
-            console.log("JWT expired. checking Refresh token")
             const isRefreshTokenValid = await checkIfRefreshTokenValid(refreshToken, email);
 
             if (isRefreshTokenValid) {
-                console.log("Refresh token is good!");
-
-                const secret = await getSecret(email)
                 const user = { email: email }
-                const accessToken = jwt.sign(user, secret, { expiresIn: '5h' })
+                const accessToken = jwt.sign(user, userSecret, { expiresIn: '5h' })
+                const jwtCookie = createCookie('jwtToken', accessToken)
 
                 req.userData = { "user": user, "accessToken": accessToken }
-
-                const jwtCookie = createCookie('jwtToken', accessToken)
                 res.setHeader('Set-Cookie', jwtCookie)
 
-                const msg = {
-                    title: "validation success.",
-                    successfull: true
-                }
-
                 if (req.path === "/check-tokens") {
+                    const msg = {
+                        title: "validation success.",
+                        successfull: true
+                    }
+
                     return res.json(msg)
                 }
                 else if (req.path === "/save") {
@@ -193,7 +192,7 @@ export async function checkAuth(req, res, next) {
 
             return res.status(401).json({ message: 'Session has expired, you have to log in' });
         }
-        console.log("Not good!!!")
+        console.log(err)
         return res.status(401).json({ message: 'Unauthorized' });
     }
 }
@@ -239,58 +238,40 @@ async function generateTokens(email, secrets = "") {
     return tokens;
 }
 
+/**
+ * Checks if a given refresh token is valid
+ * @param {*} refreshToken the refresh token to check
+ * @param {*} email the email of the user that the refresh token belongs to
+ * @returns boolean value indicates if the refresh token is valid or not
+ */
 async function checkIfRefreshTokenValid(refreshToken, email) {
-    console.log("Checking refresh token.............................")
+    console.log("Checking refresh token...")
     if (!refreshToken) {
         return false;
     }
 
     const userSecret = getRefreshSecret(email);
     const isRefreshTokenValid = await new Promise((resolve) => {
-        userSecret.then(res => {
+        userSecret.then(refreshSecret => {
             console.log("testing tests")
             // console.log(res)
-            jwt.verify(refreshToken, res, (err, user) => {
+            jwt.verify(refreshToken, refreshSecret, (err, user) => {
                 if (err) {
-                    console.log("Not good. returning false. 123")
                     resolve(false);
                 }
                 else {
-                    console.log("Fine. returning true. 123")
                     resolve(true);
                 }
             })
         })
     })
 
-
     return isRefreshTokenValid;
-}
-
-export async function saveRecipe(req, res, next) {
-
-    console.log("Saving.......")
-    console.log("This is what i got:")
-    console.log(req.body.email)
-    console.log(req.body.recipe)
-
-
-    /*
-
-    const accessToken = req.userData.accessToken;
-
-    res.cookie('jwtToken', accessToken, {
-        httpOnly: true,
-        secure: true,
-        sameSite: 'Strict'
-    })*/
-
-    return res.json({ msg: "i saved it and All good" });
-
 }
 
 /**
  * Calculates the equivalent number of milliseconds for a given number of days.
+ * Used in the proccess of creating a cookie
  *
  * @param {number} days The number of days to convert.
  * @returns {number} The calculated number of milliseconds.
@@ -308,10 +289,8 @@ function getCustomMaxAge(days) {
 /**
 ** 
 * Creates an HTTP-only cookie header string with customized options for secure storage of JWT tokens.
-
  * @param {string} name The name of the cookie to be set.
  * @param {*} value The value to be stored in the cookie, used for a JWT token.
-
  * @returns {string} The serialized cookie header string to be set using `res.setHeader('Set-Cookie', [cookie])`.
  *
  */
