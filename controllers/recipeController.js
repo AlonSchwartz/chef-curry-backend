@@ -1,8 +1,8 @@
 import { OpenAI } from "openai";
 import { saveRecipeInDB, getRecipesFromDB, favoriteRecipeInDB, getUserId, getRecipeByHash } from "../recipeDatabase.js";
 import crypto from "crypto"
-import nodemailer from 'nodemailer'
 import fs from 'fs';
+import { sendEmail } from '../emailService.js'
 
 //In localhost, contacting openai fails because the request is not being sent with tls.
 //this is a workaround to bypass it FOR DEVELOPMENT ONLY.
@@ -195,34 +195,6 @@ async function saveRecipe(recipe) {
     return recipe;
 }
 
-/**
- * Sends an email in case of an error
- * @param {*} error the error object
- */
-const sendEmail = async (error) => {
-    console.log("In send email")
-
-    // Create a transporter using SMTP
-    const transporter = nodemailer.createTransport({
-        service: 'gmail',
-        auth: {
-            user: process.env.ADMIN_EMAIL,
-            pass: process.env.EMAIL_APP_PASS
-        },
-    });
-    try {
-        let info = await transporter.sendMail({
-            from: process.env.ADMIN_EMAIL,
-            to: process.env.ADMIN_EMAIL,
-            subject: error.name + ' occurred: ' + error.message,
-            text: error.stack,
-        });
-
-        console.log('Email sent: ' + info.response);
-    } catch (error) {
-        console.error('Error occurred while sending email:', error);
-    }
-}
 
 /**
  * Adds a recipe to user favorites
