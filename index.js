@@ -1,22 +1,21 @@
 import express from 'express';
 import { router as users } from "./routes/users.js"
 import { router as recipes } from "./routes/recipes.js"
-
 import cors from 'cors'
 import cookieParser from 'cookie-parser';
-
 
 const app = express();
 app.use(express.json())
 app.use(cookieParser())
 
 var whitelist = ['http://localhost:4200', 'https://chef-curry-backend.vercel.app', 'https://chef-curry-backend.onrender.com', 'https://chef-curry-4rzif6as9-karamon12.vercel.app', 'https://chef-curry-umber.vercel.app']
+
 var corsOptions = {
     origin: function (origin, callback) {
         if (whitelist.indexOf(origin) !== -1 || !origin) {
             callback(null, true)
         } else {
-            callback(new Error('My Server: Not allowed by CORS'))
+            callback(new Error('Chef-Curry: Not allowed by CORS'))
         }
     },
     optionsSuccessStatus: 200,
@@ -25,37 +24,15 @@ var corsOptions = {
     allowedHeaders: ["Origin", "X-Requested-With", "Content-Type", "Accept", "Authorization", "X-Content-Type-Options", "Access-Control-Request-Method", "Access-Control-Request-Headers", "Access-Control-Allow-Credentials"]
 }
 
-
 app.use(cors(corsOptions))
 
 app.get("/", (req, res) => {
     res.json("Chef Curry api is online");
 });
 
-//TODO: BEFORE TRYING TO GET DATA, CHECK IF THE DATABASE IS AVAILABLE
-
 app.use("/api/auth", users);
 app.use("/api/recipes", recipes)
 
-app.use("/test", (req, res) => {
-    console.log("Test is working. 123")
-    res.status(200).send('Test is working. 123');
-
-})
-/*
-app.use((req, res, next) => {
-    res.setHeader("Access-Control-Allow-Origin", "*");
-    res.setHeader(
-        "Access-Control-Allow-Headers",
-        "Origin, X-Requested-With, Content-Type, Accept"
-    );
-    res.setHeader(
-        "Access-Control-Allow-Methods",
-        "GET, PUT, POST, PATCH, DELETE, OPTIONS"
-    );
-    next();
-});
-*/
 // Error handling
 app.use((err, req, res, next) => {
     console.error(err.stack)
