@@ -1,5 +1,5 @@
 import { OpenAI } from "openai";
-import { saveRecipeInDB, getRecipesFromDB, favoriteRecipeInDB, getUserId, getRecipeByHash } from "../recipeDatabase.js";
+import { saveRecipeInDB, getRecipesFromDB, favoriteRecipeInDB, getUserId, getRecipeByHash } from "../data-access/recipeDataAccess.js";
 import crypto from "crypto"
 import fs from 'fs';
 import { sendEmail } from '../emailService.js'
@@ -27,15 +27,12 @@ export async function createRecipe(req, res) {
     try {
 
         let recipeResponse = await contactOpenAI(recipePrompt)
-        if (recipeResponse)
-            console.log("Got recipe response!")
         let recipe = await processRecipe(recipeResponse)
         let savedRecipe = await saveRecipe(recipe)
 
         return res.json(savedRecipe)
 
     } catch (error) {
-        console.log("Contacting openai prob failed.")
         console.log(error)
 
         sendEmail(error);
@@ -187,9 +184,6 @@ async function saveRecipe(recipe) {
         }
     }
     recipe.id = recipeId;
-
-    console.log("this is what i am about to return: ")
-    console.log(recipe)
 
     return recipe;
 }
