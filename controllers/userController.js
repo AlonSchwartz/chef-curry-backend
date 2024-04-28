@@ -1,6 +1,6 @@
 import { serialize } from 'cookie';
-import { createUserInDB, checkIfEmailExists, login, hashPassword, getSecret, getRefreshSecret, updateSecret, storeSecret, deleteUserFromDB } from '../database.js';
-import { getRecipesFromDB } from "../recipeDatabase.js";
+import { createUserInDB, checkIfEmailExists, login, hashPassword, getSecret, getRefreshSecret, updateSecret, storeSecret, deleteUserFromDB } from '../data-access/userDataAccess.js';
+import { getRecipesFromDB } from "../data-access/recipeDataAccess.js";
 import { sendEmail } from '../emailService.js';
 import crypto from 'crypto';
 import jwt from 'jsonwebtoken'
