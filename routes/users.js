@@ -14,6 +14,4 @@ router.post("/check-tokens", checkAuth)
 router.delete("/logout", logoutUser)
 
 
-
-
 export { router };

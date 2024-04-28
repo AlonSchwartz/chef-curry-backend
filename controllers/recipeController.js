@@ -92,7 +92,7 @@ async function contactOpenAI(recipePrompt) {
     const chatResponse = await openai.chat.completions.create({
         model: "gpt-3.5-turbo-1106",
         max_tokens: 1000,
-        // response_format: { "type": "json_object" },
+        response_format: { "type": "json_object" },
         messages: [{ role: 'user', content: recipePrompt }]
     })
 
@@ -105,7 +105,6 @@ async function contactOpenAI(recipePrompt) {
         return recipe;
     }
     else {
-        console.log("=======================================IT FAILED?!")
         console.log(chatResponse.choices[0])
         throw new Error("Finished due to reason that is not STOP: " + chatResponse.choices[0].finish_reason)
     }

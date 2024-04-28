@@ -1,7 +1,7 @@
 import { serialize } from 'cookie';
 import { createUserInDB, checkIfEmailExists, login, hashPassword, getSecret, getRefreshSecret, updateSecret, storeSecret, deleteUserFromDB } from '../database.js';
 import { getRecipesFromDB } from "../recipeDatabase.js";
-
+import { sendEmail } from '../emailService.js';
 import crypto from 'crypto';
 import jwt from 'jsonwebtoken'
 
@@ -133,8 +133,10 @@ async function generateKey(email, isRefresh) {
         let isUserDeleted = await deleteUserFromDB(email)
 
         if (!isUserDeleted) {
-            //TODO: send email to inform
-            throw new Error("Registeration failed. Please try again later.")
+            const error = new Error("Registeration failed. Please try again later.")
+            error.name = `${email} registeration attempt failed`;
+            sendEmail(error)
+            throw error;
         }
         throw new Error("Registeration failed, check logs")
 
@@ -245,26 +247,20 @@ async function generateTokens(email, secrets = "") {
  * @returns boolean value indicates if the refresh token is valid or not
  */
 async function checkIfRefreshTokenValid(refreshToken, email) {
+    let isRefreshTokenValid = false;
     console.log("Checking refresh token...")
     if (!refreshToken) {
         return false;
     }
 
-    const userSecret = getRefreshSecret(email);
-    const isRefreshTokenValid = await new Promise((resolve) => {
-        userSecret.then(refreshSecret => {
-            console.log("testing tests")
-            // console.log(res)
-            jwt.verify(refreshToken, refreshSecret, (err, user) => {
-                if (err) {
-                    resolve(false);
-                }
-                else {
-                    resolve(true);
-                }
-            })
+    const userSecret = await getRefreshSecret(email)
+    if (userSecret) {
+        jwt.verify(refreshToken, userSecret, (err) => {
+            if (!err) {
+                isRefreshTokenValid = true;
+            }
         })
-    })
+    }
 
     return isRefreshTokenValid;
 }
