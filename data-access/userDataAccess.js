@@ -1,34 +1,21 @@
-import { config } from 'dotenv'
 import bcrypt from "bcrypt";
-import pkg from 'pg';
-const { Pool } = pkg;
+import { pool } from './databaseConnection.js';
 
-config()
-
-export { pool };
-
-const pool = new Pool({
-    connectionString: process.env.DATABASE_URL,
-    ssl: {
-        require: true,
-    },
-});
-
-
+/**
+ * Creates a user in database
+ * @param {*} email the email of the user
+ * @param {*} password the hashed password of the user
+ * @returns the id of the new user
+ */
 export async function createUserInDB(email, password) {
     //In case this email address is not registered
     try {
-
-        console.log("Trying to actualy add the user")
-
         const result = await pool.query(
             'INSERT INTO users (email, password) VALUES ($1, $2) RETURNING id',
             [email, password]
         );
 
         const id = result.rows[0].id;
-        console.log(id);
-        console.log("User created successfully!");
         return id;
     } catch (error) {
         console.log(error)

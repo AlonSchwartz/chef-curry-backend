@@ -92,6 +92,12 @@ export async function loginUser(req, res, next) {
                     res.setHeader('Set-Cookie', [jwtCookie, refreshCookie])
                     res.json(msg)
                 }
+            } else {
+                const msg = {
+                    title: "login failed.",
+                    message: "email/password does not match",
+                };
+                res.status(401).json(msg)
             }
         }
         else {
