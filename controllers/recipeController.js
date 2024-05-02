@@ -23,7 +23,6 @@ export async function createRecipe(req, res) {
         return res.status(400).json({ message: "missing data." });
     }
 
-    console.log("Going to send the request to openai now.")
     try {
 
         let recipeResponse = await contactOpenAI(recipePrompt)
@@ -168,7 +167,6 @@ async function processRecipe(recipeString) {
  */
 async function saveRecipe(recipe) {
     let recipeId = await saveRecipeInDB(recipe);
-    console.log("is it saved? " + recipeId)
 
     // In case the hash is already exists - create a new hash
     if (!recipeId) {
@@ -224,11 +222,8 @@ export async function addToFavorites(req, res, next) {
  * @returns The hash value.
  */
 export async function createHashValue(recipeDescription) {
-    console.log("TRYING TO HASH")
     try {
         let link = crypto.createHash('sha256').update(recipeDescription).digest('hex').slice(0, 16);
-        console.log("Going to try create a hash. the hash is " + link)
-
         return link;
     } catch (error) {
         console.log(error)
@@ -285,7 +280,7 @@ async function flattenObjectValues(obj) {
  */
 function getPromptObject() {
     const isDevelopment = process.env.DEVELOPMENT === 'true';
-    console.log(typeof isDevelopment)
+
     let content_path = ''
     if (isDevelopment) {
         content_path = 'prompt_content.txt'
