@@ -1,7 +1,7 @@
 import { serialize } from 'cookie';
 import { createUserInDB, checkIfEmailExists, login, hashPassword, getSecret, getRefreshSecret, storeSecret, deleteUserFromDB } from '../data-access/userDataAccess.js';
 import { getRecipesFromDB } from "../data-access/recipeDataAccess.js";
-import { sendEmail } from '../emailService.js';
+import { sendEmail } from '../utils/emailService.js';
 import { AUTH_MESSAGES, AUTH_TYPE } from '../utils/authConstants.js';
 import crypto from 'crypto';
 import jwt from 'jsonwebtoken'
@@ -121,9 +121,9 @@ function handleAuthFailure(res, type, message, statusCode = 401) {
  */
 async function generateKey(email, isRefresh) {
     const token = crypto.randomBytes(64).toString('hex')
-    const isStoredSuccussfuly = await storeSecret(email, token, isRefresh)
+    const isStoredSuccessfuly = await storeSecret(email, token, isRefresh)
 
-    if (isStoredSuccussfuly) {
+    if (isStoredSuccessfuly) {
         return token
     }
     else {
@@ -160,7 +160,7 @@ export async function checkAuth(req, res, next) {
         req.user = user; // attaching user information to the request object, for cases request passing to different middleware
 
         if (req.path === "/check-tokens") {
-            return res.json({ msg: "All good. user is verifed", successfull: true }) //change successfull to successful (just 1 l)
+            return res.json({ msg: "All good. user is verifed", successful: true })
         }
         else if (req.path === "/save") {
             next()
@@ -183,7 +183,7 @@ export async function checkAuth(req, res, next) {
                 if (req.path === "/check-tokens") {
                     const msg = {
                         title: "validation success.",
-                        successfull: true
+                        successful: true
                     }
 
                     return res.json(msg)
@@ -208,7 +208,7 @@ export async function logoutUser(req, res, next) {
     res.clearCookie('jwtToken');
     res.clearCookie('refreshToken');
 
-    return res.status(200).json({ successfull: true });
+    return res.status(200).json({ successful: true });
 }
 
 /**
