@@ -1,7 +1,8 @@
 import { serialize } from 'cookie';
-import { createUserInDB, checkIfEmailExists, login, hashPassword, getSecret, getRefreshSecret, updateSecret, storeSecret, deleteUserFromDB } from '../data-access/userDataAccess.js';
+import { createUserInDB, checkIfEmailExists, login, hashPassword, getSecret, getRefreshSecret, storeSecret, deleteUserFromDB } from '../data-access/userDataAccess.js';
 import { getRecipesFromDB } from "../data-access/recipeDataAccess.js";
-import { sendEmail } from '../emailService.js';
+import { sendEmail } from '../utils/emailService.js';
+import { AUTH_MESSAGES, AUTH_TYPE } from '../utils/authConstants.js';
 import crypto from 'crypto';
 import jwt from 'jsonwebtoken'
 
@@ -13,50 +14,31 @@ export async function createUser(req, res) {
     try {
         const isEmailExists = await checkIfEmailExists(email);
 
-        if (!isEmailExists) {
-            const hashedPassword = await hashPassword(password);
-            const userID = await createUserInDB(email, hashedPassword);
-            const secret = await generateKey(email, false);
-            const refreshSecret = await generateKey(email, true);
-
-            const user = { email: email }
-            const secrets = {
-                secret: secret,
-                refreshSecret: refreshSecret
-            }
-
-            const tokens = await generateTokens(email, secrets)
-            const accessToken = tokens.accessToken;
-            const refreshToken = tokens.refreshToken;
-
-            const msg = {
-                title: "User created successfully",
-                userId: userID,
-                succussfull: true
-            }
-            req.user = user;
-
-            const jwtCookie = createCookie('jwtToken', accessToken)
-            const refreshCookie = createCookie('refreshToken', refreshToken)
-
-            res.setHeader('Set-Cookie', [jwtCookie, refreshCookie])
-            res.json(msg)
+        if (isEmailExists) {
+            return handleAuthFailure(res, AUTH_TYPE.REGISTRATION, AUTH_MESSAGES.REGISTRATION_FAILED_EMAIL_IN_USE, 409);
         }
-        else {
-            const msg = {
-                title: "registartion failed.",
-                message: "Email address already in use.",
-            };
-            res.status(409).json(msg)
-            return;
+        const hashedPassword = await hashPassword(password);
+        const userID = await createUserInDB(email, hashedPassword);
+        const secret = await generateKey(email, false);
+        const refreshSecret = await generateKey(email, true);
+
+        const user = { email: email }
+        const secrets = {
+            secret: secret,
+            refreshSecret: refreshSecret
         }
+
+        const tokens = await generateTokens(email, secrets)
+
+        if (!tokens) {
+            return handleAuthFailure(res, AUTH_TYPE.REGISTRATION, AUTH_MESSAGES.FAILED_TO_GENERATE_TOKENS, 409);
+        }
+
+        handleAuthSuccess(res, 'registered', userID, user, tokens);
+
     } catch (error) {
         console.log(error)
-        const msg = {
-            title: "registeration failed.",
-            message: error.message,
-        };
-        res.status(503).json(msg)
+        handleAuthFailure(res, error.message, 503);
     }
 }
 
@@ -70,46 +52,65 @@ export async function loginUser(req, res, next) {
 
     try {
         const isEmailExists = await checkIfEmailExists(email)
-        if (isEmailExists) {
-            const successfulLogin = await login(email, password)
-            if (successfulLogin) {
-                const recipes = await getRecipesFromDB(email)
-                const tokens = await generateTokens(email);
 
-                if (tokens) {
-                    const accessToken = tokens.accessToken;
-                    const refreshToken = tokens.refreshToken;
-
-                    const msg = {
-                        title: "User logged in successfully .",
-                        succussfull: true,
-                        recipes: recipes
-                    }
-
-                    const jwtCookie = createCookie('jwtToken', accessToken)
-                    const refreshCookie = createCookie('refreshToken', refreshToken)
-
-                    res.setHeader('Set-Cookie', [jwtCookie, refreshCookie])
-                    res.json(msg)
-                }
-            }
+        if (!isEmailExists) {
+            return handleAuthFailure(res, AUTH_TYPE.LOGIN, AUTH_MESSAGES.LOGIN_FAILED_MISMATCH);
         }
-        else {
-            const msg = {
-                title: "login failed.",
-                message: "email/password does not match",
-            };
-            res.status(401).json(msg)
+
+        const successfulLogin = await login(email, password)
+
+        if (!successfulLogin) {
+            return handleAuthFailure(res, AUTH_TYPE.LOGIN, AUTH_MESSAGES.LOGIN_FAILED_MISMATCH);
         }
+
+        const recipes = await getRecipesFromDB(email);
+        const tokens = await generateTokens(email);
+
+        if (!tokens) {
+            return handleAuthFailure(res, AUTH_TYPE.LOGIN, AUTH_MESSAGES.FAILED_TO_GENERATE_TOKENS);
+        }
+
+        handleAuthSuccess(res, 'logged in', recipes, tokens);
     } catch (error) {
         console.log(error)
-        const msg = {
-            title: "login failed.",
-            message: error.message,
-        };
-        res.status(503).json(msg)
-        return;
+        handleAuthFailure(res, AUTH_TYPE.LOGIN, error.message, 503);
     }
+}
+
+
+/**
+ * Handles successful auth process and sending back the data
+ * @param {*} res the response object
+ * @param {*} action the action that was performed
+ * @param {*} recipes the recipes of the user
+ * @param {*} tokens the tokens of the user
+ */
+function handleAuthSuccess(res, action, recipes, tokens) {
+    const { accessToken, refreshToken } = tokens;
+    const jwtCookie = createCookie('jwtToken', accessToken);
+    const refreshCookie = createCookie('refreshToken', refreshToken);
+
+    res.setHeader('Set-Cookie', [jwtCookie, refreshCookie]);
+    res.json({
+        title: `User ${action} successfully`,
+        successful: true,
+        recipes,
+    });
+}
+
+
+/**
+ * Handles auth failure process
+ * @param {*} res the response object
+ * @param {*} type the type of auth action: login or registeration
+ * @param {*} message the message to send to the user
+ * @param {*} statusCode status code to send. default is 401
+ */
+function handleAuthFailure(res, type, message, statusCode = 401) {
+    res.status(statusCode).json({
+        title: type + ' failed.',
+        message,
+    });
 }
 
 /**
@@ -120,9 +121,9 @@ export async function loginUser(req, res, next) {
  */
 async function generateKey(email, isRefresh) {
     const token = crypto.randomBytes(64).toString('hex')
-    const isStoredSuccussfuly = await storeSecret(email, token, isRefresh)
+    const isStoredSuccessfuly = await storeSecret(email, token, isRefresh)
 
-    if (isStoredSuccussfuly) {
+    if (isStoredSuccessfuly) {
         return token
     }
     else {
@@ -159,7 +160,7 @@ export async function checkAuth(req, res, next) {
         req.user = user; // attaching user information to the request object, for cases request passing to different middleware
 
         if (req.path === "/check-tokens") {
-            return res.json({ msg: "All good. user is verifed", successfull: true }) //change successfull to successful (just 1 l)
+            return res.json({ msg: "All good. user is verifed", successful: true })
         }
         else if (req.path === "/save") {
             next()
@@ -182,7 +183,7 @@ export async function checkAuth(req, res, next) {
                 if (req.path === "/check-tokens") {
                     const msg = {
                         title: "validation success.",
-                        successfull: true
+                        successful: true
                     }
 
                     return res.json(msg)
@@ -207,7 +208,7 @@ export async function logoutUser(req, res, next) {
     res.clearCookie('jwtToken');
     res.clearCookie('refreshToken');
 
-    return res.status(200).json({ successfull: true });
+    return res.status(200).json({ successful: true });
 }
 
 /**
@@ -248,7 +249,6 @@ async function generateTokens(email, secrets = "") {
  */
 async function checkIfRefreshTokenValid(refreshToken, email) {
     let isRefreshTokenValid = false;
-    console.log("Checking refresh token...")
     if (!refreshToken) {
         return false;
     }

@@ -1,4 +1,4 @@
-import { pool } from './userDataAccess.js';
+import { pool } from './databaseConnection.js';
 
 /**
  * Saves a given recipe into the database
@@ -96,7 +96,6 @@ async function getFavoriteRecipesIds(userId) {
  */
 export async function getUserId(email) {
     try {
-
         const { rows: user } = await pool.query(`
         SELECT id
         FROM users
@@ -114,7 +113,7 @@ export async function getUserId(email) {
  * @param {*} userId the id of the user
  * @returns array of favorite recipes
  */
-export async function getFavoriteRecipesBy_userId(userId) {
+export async function getFavoriteRecipesBy_userId(userId) { // Need to decide if using this function or doing it in different way.
     try {
         const { rows: recipes } = await pool.query(`
         SELECT recipes.* 

@@ -2,7 +2,7 @@ import { OpenAI } from "openai";
 import { saveRecipeInDB, getRecipesFromDB, favoriteRecipeInDB, getUserId, getRecipeByHash } from "../data-access/recipeDataAccess.js";
 import crypto from "crypto"
 import fs from 'fs';
-import { sendEmail } from '../emailService.js'
+import { sendEmail } from '../utils/emailService.js'
 
 //In localhost, contacting openai fails because the request is not being sent with tls.
 //this is a workaround to bypass it FOR DEVELOPMENT ONLY.
