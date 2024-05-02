@@ -1,5 +1,5 @@
 import { serialize } from 'cookie';
-import { createUserInDB, checkIfEmailExists, login, hashPassword, getSecret, getRefreshSecret, updateSecret, storeSecret, deleteUserFromDB } from '../data-access/userDataAccess.js';
+import { createUserInDB, checkIfEmailExists, login, hashPassword, getSecret, getRefreshSecret, storeSecret, deleteUserFromDB } from '../data-access/userDataAccess.js';
 import { getRecipesFromDB } from "../data-access/recipeDataAccess.js";
 import { sendEmail } from '../emailService.js';
 import crypto from 'crypto';

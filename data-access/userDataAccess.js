@@ -2,13 +2,16 @@ import bcrypt from "bcrypt";
 import { pool } from './databaseConnection.js';
 
 /**
- * Creates a user in database
+ * Creates a new user in database.
+ * 
+ * This function is being called only after a check if the email address is already registered.
+ * 
+ * Therefore, in case of an error, it means that the database is not available.
  * @param {*} email the email of the user
  * @param {*} password the hashed password of the user
  * @returns the id of the new user
  */
 export async function createUserInDB(email, password) {
-    //In case this email address is not registered
     try {
         const result = await pool.query(
             'INSERT INTO users (email, password) VALUES ($1, $2) RETURNING id',
@@ -19,17 +22,20 @@ export async function createUserInDB(email, password) {
         return id;
     } catch (error) {
         console.log(error)
-        //At this point, the email address and password has already been verified. therefore, the only reason for an error can be that the database is not available
         throw new Error("Database not available :(")
     }
 }
 
+/**
+ * Performing login to the system.
+ * 
+ * comparing the given email and hashed password with the stored ones.
+ * @param {*} email the email of the user
+ * @param {*} password the hashed password
+ * @returns boolean indicates if the user is logged in or not
+ */
 export async function login(email, password) {
-    //  console.log("I am in the database function, with the email: " + email )
     const user = await getUserFromDB(email);
-    console.log("this is the user")
-    console.log(user)
-    console.log(password)
     try {
         if (await bcrypt.compare(password, user.password)) {
             console.log("Password Match!")
@@ -45,37 +51,18 @@ export async function login(email, password) {
     }
 }
 
-export async function deleteSecrets(email) {
-    try {
-        const user = await pool.query(`
-        DELETE FROM refresh_tokens
-        WHERE email = $1 AND id IN (
-          SELECT id FROM tokens WHERE email = $1
-        )
-      `, [email, email]);
-
-        return true;
-    } catch (error) {
-        console.log(error)
-        return false;
-    }
-}
-
+/**
+ * Checking if a given email address is already registered
+ * @param {*} email the email to check
+ * @returns boolean indicates the answer
+ */
 export async function checkIfEmailExists(email) {
     try {
-        console.log("EMAIL IS " + email)
-        console.log("I am in check email method!")
-
         const queryResult = await pool.query(
             'SELECT COUNT(1) FROM users WHERE email = $1',
             [email]
         );
-
-        console.log("Finished the search. I found: ");
-        console.log(queryResult.rows[0]);
-
         const emailCount = queryResult.rows[0].count;
-
 
         return emailCount === '0' ? false : true;
     } catch (error) {
@@ -84,11 +71,14 @@ export async function checkIfEmailExists(email) {
     }
 }
 
+/**
+ * Turns a given password into hash value.
+ * @param {*} password the password to hash 
+ * @returns the hashed password
+ */
 export async function hashPassword(password) {
     try {
-        console.log("Going to try create a salt. the password is " + password)
         const salt = await bcrypt.genSalt()
-        console.log("Salt is " + salt)
         const hashedPassword = await bcrypt.hash(password, salt)
         return hashedPassword;
     } catch (error) {
@@ -97,9 +87,13 @@ export async function hashPassword(password) {
     }
 }
 
+/**
+ * Gets user's basic data from DB
+ * @param {*} email the email of the user
+ * @returns user object
+ */
 async function getUserFromDB(email) {
     try {
-        console.log("in getUserFromDB method.")
         const result = await pool.query(`
         SELECT *
         FROM users
@@ -129,7 +123,6 @@ export async function storeSecret(email, token, isRefresh) {
         INSERT INTO ${tableName} (email, token)
         VALUES ($1, $2)
       `, [email, token]);
-        console.log("row count is: " + result.rowCount)
         return result.rowCount > 0;
     } catch (error) {
         console.log(error)
@@ -137,24 +130,11 @@ export async function storeSecret(email, token, isRefresh) {
     }
 }
 
-export async function updateSecret(email, token) {
-
-    let tableName = "tokens";
-
-    try {
-        const result = await pool.query(`
-        UPDATE ${tableName}
-        SET token = $1 
-        WHERE email = $2
-      `, [token, email]);
-
-        return result.rowCount > 0;
-    } catch (error) {
-        console.log(error)
-        return false;
-    }
-}
-
+/**
+ * Gets a user secret from DB
+ * @param {*} email the email address of the user
+ * @returns user's secret
+ */
 export async function getSecret(email) {
     try {
 
@@ -163,8 +143,6 @@ export async function getSecret(email) {
         FROM tokens
         WHERE email = $1
       `, [email]);
-        // console.log("Token:")
-        // console.log(result.rows)
 
         return result.rows[0] ? result.rows[0].token : null;
     } catch (error) {
@@ -172,6 +150,11 @@ export async function getSecret(email) {
     }
 }
 
+/**
+ * Gets a user refresh secret from DB
+ * @param {*} email the email address of the user
+ * @returns user's refresh secret
+ */
 export async function getRefreshSecret(email) {
     try {
         const result = await pool.query(`
@@ -183,7 +166,6 @@ export async function getRefreshSecret(email) {
         return result.rows[0] ? result.rows[0].token : null;
     } catch (error) {
         console.log(error)
-        // return [];  // maybe i should remove it
     }
 }
 /**
@@ -204,3 +186,27 @@ export async function deleteUserFromDB(email) {
     }
 }
 
+/**
+ * Updates the stored secret with a new one.
+ * 
+ * Currently its not in use
+ * @param {*} email the email of the user
+ * @param {*} secret the new secret 
+ * @returns 
+ */
+export async function updateSecret(email, secret) {
+    let tableName = "tokens";
+
+    try {
+        const result = await pool.query(`
+        UPDATE ${tableName}
+        SET token = $1 
+        WHERE email = $2
+      `, [secret, email]);
+
+        return result.rowCount > 0;
+    } catch (error) {
+        console.log(error)
+        return false;
+    }
+}
