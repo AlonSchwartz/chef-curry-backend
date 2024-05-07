@@ -23,6 +23,7 @@ Thumbs.db
 .env
 
 # project secrets
+etc
 prompts/prompt_content.txt
 prompts/prompt_prefix
 prompts
