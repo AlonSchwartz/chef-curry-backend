@@ -7,6 +7,7 @@ import { sendEmail } from '../utils/emailService.js'
 //In localhost, contacting openai fails because the request is not being sent with tls.
 //this is a workaround to bypass it FOR DEVELOPMENT ONLY.
 if (process.env.DEVELOPMENT) {
+    console.warn("Local development mode: TLS IS OFF")
     process.env.NODE_TLS_REJECT_UNAUTHORIZED = "0";
 }
 
