@@ -283,14 +283,14 @@ function getPromptObject() {
 
     let content_path = ''
     if (isDevelopment) {
-        content_path = 'etc/secrets/prompt_content.txt'
+        content_path = 'prompt_content.txt'
     }
     else {
-        content_path = 'etc/secrets/prompt_content'
+        content_path = 'prompt_content'
     }
 
     const content = fs.readFileSync(content_path, 'utf-8');
-    const prefixStr = fs.readFileSync('etc/secrets/prompt_prefix', 'utf-8');
+    const prefixStr = fs.readFileSync('prompt_prefix', 'utf-8');
 
     const prefixObj = JSON.parse(prefixStr)
 
