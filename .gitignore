@@ -23,5 +23,6 @@ Thumbs.db
 .env
 
 # project secrets
-prompt_content.txt
-prompt_prefix
+prompts/prompt_content.txt
+prompts/prompt_prefix
+prompts
