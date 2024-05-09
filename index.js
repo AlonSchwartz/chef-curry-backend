@@ -8,7 +8,7 @@ const app = express();
 app.use(express.json())
 app.use(cookieParser())
 
-var whitelist = ['http://localhost:4200', 'https://chef-curry-backend.vercel.app', 'https://chef-curry-backend.onrender.com', 'https://chef-curry-4rzif6as9-karamon12.vercel.app', 'https://chef-curry-umber.vercel.app']
+var whitelist = ['http://localhost:4200', 'https://chef-curry-backend.onrender.com', 'https://chef-curry-ai.vercel.app']
 
 var corsOptions = {
     origin: function (origin, callback) {
