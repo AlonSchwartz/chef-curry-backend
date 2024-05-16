@@ -30,7 +30,7 @@ export async function createRecipe(req, res) {
         let recipe = await processRecipe(recipeResponse)
         let savedRecipe = await saveRecipe(recipe)
 
-        return res.json(savedRecipe)
+        return res.json(savedRecipe.shareableHash)
 
     } catch (error) {
         console.log(error)
