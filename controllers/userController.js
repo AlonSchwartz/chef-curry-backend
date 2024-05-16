@@ -173,6 +173,7 @@ export async function checkAuth(req, res, next) {
             const isRefreshTokenValid = await checkIfRefreshTokenValid(refreshToken, email);
 
             if (isRefreshTokenValid) {
+                console.log("Refresh token is Valid.")
                 const user = { email: email }
                 const accessToken = jwt.sign(user, userSecret, { expiresIn: '5h' })
                 const jwtCookie = createCookie('jwtToken', accessToken)
