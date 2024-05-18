@@ -10,13 +10,14 @@
 * Using Nodemailer for error logging to my email
 
 ### Installation
-1. Clone the repository locally
-2. Run ``npm install`` to install dependencies.
+1. Clone the repository: ``git clone https://github.com/AlonSchwartz/chef-curry-backend.git``
+2. Navigate to the project directory: ``cd chef-curry-backend``
+3. Run ``npm install`` to install dependencies.
 
 ### Usage
 1. Create a .env file in the project root directory.
 2. Create prompts files: prompt_content.txt and prompt_prefix
-3. Run ```npm start``` to start the server.
+3. Run ```npm run dev``` to start the server.
 
 ### Environment Variables
 This project requires the following environment variables:
