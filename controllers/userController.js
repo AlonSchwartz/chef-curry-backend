@@ -33,8 +33,7 @@ export async function createUser(req, res) {
         if (!tokens) {
             return handleAuthFailure(res, AUTH_TYPE.REGISTRATION, AUTH_MESSAGES.FAILED_TO_GENERATE_TOKENS, 409);
         }
-
-        handleAuthSuccess(res, 'registered', userID, user, tokens);
+        handleAuthSuccess(res, 'registered', userID, tokens);
 
     } catch (error) {
         console.log(error)
